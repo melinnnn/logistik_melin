@@ -12,20 +12,27 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         die("Error: Kota asal dan kota tujuan wajib diisi.");
     }
 
+    // Harga per kg berdasarkan layanan
     $harga_per_kg = [
         "Ekspres" => 10000,
         "Reguler" => 7000,
         "Hemat" => 5000
     ];
 
+    // Ambil jarak dari database
     $query = "SELECT jarak FROM jarak_melin WHERE kota_asal='$kota_asal' AND kota_tujuan='$kota_tujuan'";
     $result = mysqli_query($conn, $query);
     $row = mysqli_fetch_assoc($result);
     $jarak = $row['jarak'] ?? 1;
 
+    // Hitung total harga
     $total_harga = $jarak * $harga_per_kg[$layanan] * $berat;
 
+    // Generate nomor resi
     $resi = "RESI-" . date("Ymd") . "-" . rand(1000, 9999);
+
+    // Mulai transaksi
+    mysqli_begin_transaction($conn);
 
     // Insert ke tabel pengiriman_melin
     $query_pengiriman = "INSERT INTO pengiriman_melin (resi_melin, nama_pengirim_melin, telepon_pengirim_melin, 
@@ -36,18 +43,23 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     '$kota_tujuan', '$berat', '$layanan', '$total_harga', 'Belum Dikirim')";
 
     if (mysqli_query($conn, $query_pengiriman)) {
-        // Jika pengiriman berhasil, otomatis tambahkan ke pembayaran_melin
-        $query_pembayaran = "INSERT INTO pembayaran_melin (resi_melin, total_harga_melin, status_pembayaran_melin) 
-        VALUES ('$resi', '$total_harga', 'Belum Lunas')";
-        
+        $id_pengiriman = mysqli_insert_id($conn); // Ambil ID terakhir yang dimasukkan
+
+        // Insert ke tabel pembayaran_melin dengan id_pengiriman_melin
+        $query_pembayaran = "INSERT INTO pembayaran_melin (id_pengiriman_melin, resi_melin, total_harga_melin, status_pembayaran_melin) 
+        VALUES ('$id_pengiriman', '$resi', '$total_harga', 'Belum Lunas')";
+
         if (mysqli_query($conn, $query_pembayaran)) {
+            mysqli_commit($conn); // Simpan semua perubahan
             header("Location: ../pembayaran/pembayaran_melin.php?resi=$resi");
             exit();
         } else {
-            echo "Error Insert Pembayaran: " . mysqli_error($conn);
+            mysqli_rollback($conn); // Batalkan transaksi jika gagal
+            die("Error Insert Pembayaran: " . mysqli_error($conn));
         }
     } else {
-        echo "Error Insert Pengiriman: " . mysqli_error($conn);
+        mysqli_rollback($conn); // Batalkan transaksi jika gagal
+        die("Error Insert Pengiriman: " . mysqli_error($conn));
     }
 }
 ?>

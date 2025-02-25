@@ -9,22 +9,30 @@ if (!isset($_GET['id'])) {
 
 $id_pengiriman = $_GET['id'];
 
-// Mengambil data pengiriman
-$query_pengiriman = mysqli_query($conn, "SELECT * FROM pengiriman_melin WHERE id_pengiriman_melin = '$id_pengiriman'");
-$data_pengiriman = mysqli_fetch_assoc($query_pengiriman);
+// Query INNER JOIN untuk mengambil data pengiriman dan pembayaran
+$query = mysqli_query($conn, "
+    SELECT 
+        p.resi_melin, 
+        p.nama_pengirim_melin, 
+        p.nama_penerima_melin, 
+        p.alamat_penerima_melin, 
+        p.kota_tujuan_melin, 
+        p.layanan_melin, 
+        p.berat_melin, 
+        COALESCE(pb.metode_pembayaran_melin, 'Belum Dibayar') AS metode_pembayaran_melin, 
+        COALESCE(pb.total_harga_melin, 0) AS total_harga_melin
+    FROM pengiriman_melin p
+    LEFT JOIN pembayaran_melin pb ON p.id_pengiriman_melin = pb.id_pengiriman_melin
+    WHERE p.id_pengiriman_melin = '$id_pengiriman'
+");
 
-if (!$data_pengiriman) {
-    echo "Data pengiriman tidak ditemukan!";
+
+$data = mysqli_fetch_assoc($query);
+
+if (!$data) {
+    echo "Data tidak ditemukan!";
     exit();
 }
-
-// Mengambil data pembayaran berdasarkan id_pengiriman_melin
-// tes
-$query_pembayaran = mysqli_query($conn, "SELECT metode_pembayaran_melin, total_harga_melin FROM pembayaran_melin WHERE id_pengiriman_melin = '$id_pengiriman'");
-$data_pembayaran = mysqli_fetch_assoc($query_pembayaran);
-
-$metode_pembayaran = $data_pembayaran ? $data_pembayaran['metode_pembayaran_melin'] : 'Belum Dibayar';
-$total_harga = $data_pembayaran ? number_format($data_pembayaran['total_harga_melin'], 0, ',', '.') : '0';
 ?>
 
 <!DOCTYPE html>
@@ -43,30 +51,32 @@ $total_harga = $data_pembayaran ? number_format($data_pembayaran['total_harga_me
 <body onload="printPage()">
 
 <div class="container mt-4">
-    <div class="card p-4">
+    <div class="card p-4 border">
         <h2 class="text-center">📦 Label Pengiriman</h2>
         <hr>
-        <p><strong>Nomor Resi:</strong> <?= $data_pengiriman['resi_melin']; ?></p>
-        <p><strong>Pengirim:</strong> <?= $data_pengiriman['nama_pengirim_melin']; ?></p>
-        <p><strong>Penerima:</strong> <?= $data_pengiriman['nama_penerima_melin']; ?></p>
-        <p><strong>Alamat Penerima:</strong> <?= $data_pengiriman['alamat_penerima_melin']; ?></p>
-        <p><strong>Kota Tujuan:</strong> <?= $data_pengiriman['kota_tujuan_melin']; ?></p>
+        
+        <!-- Detail Pengiriman -->
+        <p><strong>Nomor Resi:</strong> <?= $data['resi_melin']; ?></p>
+        <p><strong>Pengirim:</strong> <?= $data['nama_pengirim_melin']; ?></p>
+        <p><strong>Penerima:</strong> <?= $data['nama_penerima_melin']; ?></p>
+        <p><strong>Alamat Penerima:</strong> <?= $data['alamat_penerima_melin']; ?></p>
+        <p><strong>Kota Tujuan:</strong> <?= $data['kota_tujuan_melin']; ?></p>
 
-        <!-- Menambahkan detail layanan pengiriman -->
-        <p><strong>Layanan Pengiriman:</strong> <?= $data_pengiriman['layanan_melin']; ?></p>
-        <p><strong>Berat:</strong> <?= $data_pengiriman['berat_melin']; ?> Kg</p>
-        <p><strong>Metode Pembayaran:</strong> <?= $metode_pembayaran; ?></p>
+        <!-- Detail Layanan -->
+        <p><strong>Layanan Pengiriman:</strong> <?= $data['layanan_melin']; ?></p>
+        <p><strong>Berat:</strong> <?= $data['berat_melin']; ?> Kg</p>
+        <p><strong>Metode Pembayaran:</strong> <?= $data['metode_pembayaran_melin']; ?></p>
         
         <hr>
-        
-        <!-- Menambahkan detail produk -->
+
+        <!-- Detail Produk -->
         <p><strong>Produk:</strong> LCD TOUCHSCREEN OPPO A37F - FULLSET</p>
         <p><strong>SKU:</strong> Putih OG SUPER</p>
         <p><strong>Jumlah:</strong> 1 pc</p>
 
         <hr>
-        
-        <p><strong>Total Harga:</strong> Rp. <?= $total_harga; ?></p>
+
+        <p><strong>Total Harga:</strong> Rp. <?= number_format($data['total_harga_melin'], 0, ',', '.'); ?></p>
     </div>
 </div>
 
