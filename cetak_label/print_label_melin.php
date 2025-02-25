@@ -19,6 +19,7 @@ if (!$data_pengiriman) {
 }
 
 // Mengambil data pembayaran berdasarkan id_pengiriman_melin
+// tes
 $query_pembayaran = mysqli_query($conn, "SELECT metode_pembayaran_melin, total_harga_melin FROM pembayaran_melin WHERE id_pengiriman_melin = '$id_pengiriman'");
 $data_pembayaran = mysqli_fetch_assoc($query_pembayaran);
 
